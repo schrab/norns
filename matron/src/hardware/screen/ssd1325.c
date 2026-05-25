@@ -158,7 +158,11 @@ void ssd1325_init() {
     gpiod_line_request_output(gpio_dc, "D/C", 0);
     gpiod_line_request_output(gpio_reset, "RST", 0);
 
+    // Hardware reset pulse - datasheet Section 8.5: min 1us RST low, then 1us high
+    gpiod_line_set_value(gpio_reset, 0);
+    usleep(10);
     gpiod_line_set_value(gpio_reset, 1);
+    usleep(10);
 
     // Init sequence from your fbtft driver
     write_command(SSD1325_SET_DISPLAY_OFF);
@@ -182,10 +186,10 @@ void ssd1325_init() {
     write_command_with_data(SSD1325_SET_CONTRAST_CURRENT, 0x7f);
     write_command_with_data(SSD1325_SET_ROW_PERIOD, 0x51);
     write_command_with_data(SSD1325_SET_PHASE_LENGTH, 0x55);
-    write_command_with_data(SSD1325_SET_PRECHARGE_COMPARATOR, 0x02);
-    write_command_with_data(SSD1325_ENABLE_PRECHARGE_COMPARATOR, 0x28);
+    write_command_with_data(SSD1325_SET_PRECHARGE_COMPENSATION_LEVEL, 0x02);
+    write_command_with_data(SSD1325_ENABLE_PRECHARGE_COMPENSATION, 0x28);
     write_command_with_data(SSD1325_SET_VCOMH_VOLTAGE, 0x55);
-    write_command_with_data(0xBF, 0x02);
+    write_command_with_data(SSD1325_SET_SEGMENT_LOW_VOLTAGE, 0x02);
     write_command(SSD1325_SET_DISPLAY_MODE_NORMAL);
 
     static struct sched_param param;
@@ -305,16 +309,12 @@ void ssd1325_refresh() {
 
     gpiod_line_set_value(gpio_dc, 1);
 
-    const uint32_t spidev_bufsize = 8192;
-    const uint32_t n_transfers = SPIDEV_BUFFER_LEN / spidev_bufsize;
-    for (uint32_t i = 0; i < n_transfers; i++) {
-        transfer.tx_buf = (unsigned long)(spidev_buffer + (i * spidev_bufsize));
-        transfer.len = SPIDEV_BUFFER_LEN / n_transfers;
-        if (ioctl(spidev_fd, SPI_IOC_MESSAGE(1), &transfer) < 0) {
-            fprintf(stderr, "%s: SPI data transfer %d of %d failed.\n",
-                    __func__, i, n_transfers);
-            goto early_return;
-        }
+    // Send pixel data - buffer is 4096 bytes, well within spidev bufsiz (8192)
+    transfer.tx_buf = (unsigned long)spidev_buffer;
+    transfer.len = SPIDEV_BUFFER_LEN;
+    if (ioctl(spidev_fd, SPI_IOC_MESSAGE(1), &transfer) < 0) {
+        fprintf(stderr, "%s: SPI data transfer failed.\n", __func__);
+        goto early_return;
     }
 
 early_return:
@@ -330,8 +330,8 @@ void ssd1325_set_contrast(uint8_t c) {
     write_command_with_data(SSD1325_SET_CONTRAST_CURRENT, c);
 }
 
-void ssd1325_set_display_mode(ssd1325_display_mode_t mode_offset) {
-    write_command(SSD1325_SET_DISPLAY_MODE_ALL_OFF + mode_offset);
+void ssd1325_set_display_mode(ssd1325_display_mode_t mode) {
+    write_command((uint8_t)mode);
 }
 
 void ssd1325_set_gamma(double g) {
