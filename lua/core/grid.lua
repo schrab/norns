@@ -88,8 +88,10 @@ function Grid.remove(dev) end
 -- @tparam integer val : rotation 0,90,180,270 as [0, 3]
 function Grid:rotation(val)
   _norns.grid_set_rotation(self.dev, val)
+  self.rows = _norns.grid_rows(self.dev)
+  self.cols = _norns.grid_cols(self.dev)
+  Grid.update_devices()
 end
-
 
 --- enable/disable grid tilt.
 -- @tparam integer id : sensor
@@ -105,15 +107,17 @@ end
 --- set state of single LED on this grid device.
 -- @tparam integer x : column index (1-based!)
 -- @tparam integer y : row index (1-based!)
--- @tparam integer val : LED brightness in [0, 15]
-function Grid:led(x, y, val)
-  _norns.grid_set_led(self.dev, x, y, val)
+-- @tparam integer val : LED brightness level in [0, 15]
+-- @tparam bool rel : relative brightness (add to existing level)
+function Grid:led(x, y, val, rel)
+  _norns.grid_set_led(self.dev, x, y, val, rel)
 end
 
 --- set state of all LEDs on this grid device.
--- @tparam integer val : LED brightness in [0, 15]
-function Grid:all(val)
-  _norns.grid_all_led(self.dev, val)
+-- @tparam integer val : LED brightness level in [0, 15]
+-- @tparam bool rel : relative brightness (add to existing level)
+function Grid:all(val, rel)
+  _norns.grid_all_led(self.dev, val, rel)
 end
 
 --- update any dirty quads on this grid device.
@@ -122,6 +126,7 @@ function Grid:refresh()
 end
 
 --- intensity
+-- @tparam integer i : intensity [0, 15]
 function Grid:intensity(i)
   _norns.monome_intensity(self.dev, i)
 end

@@ -28,6 +28,7 @@ for i=1,4 do
     all = vport.wrap_method('all'),
     refresh = vport.wrap_method('refresh'),
     segment = vport.wrap_method('segment'),
+    intensity = vport.wrap_method('intensity'),
   }
 end
 
@@ -82,15 +83,17 @@ function Arc.remove(dev) end
 --- set state of single LED on this arc device.
 -- @tparam integer ring : ring index (1-based!)
 -- @tparam integer x : led index (1-based!)
--- @tparam integer val : LED brightness in [0, 15]
-function Arc:led(ring, x, val)
-  _norns.arc_set_led(self.dev, ring, x, val)
+-- @tparam integer val : LED brightness level in [0, 15]
+-- @tparam bool rel : relative brightness (add to existing level)
+function Arc:led(ring, x, val, rel)
+  _norns.arc_set_led(self.dev, ring, x, val, rel)
 end
 
 --- set state of all LEDs on this arc device.
--- @tparam integer val : LED brightness in [0, 15]
-function Arc:all(val)
-  _norns.arc_all_led(self.dev, val)
+-- @tparam integer val : LED brightness level in [0, 15]
+-- @tparam bool rel : relative brightness (add to existing level)
+function Arc:all(val, rel)
+  _norns.arc_all_led(self.dev, val, rel)
 end
 
 --- update any dirty quads on this arc device.
@@ -98,14 +101,15 @@ function Arc:refresh()
   _norns.monome_refresh(self.dev)
 end
 
---- create an anti-aliased point to point arc 
+--- create an anti-aliased point to point arc
 -- segment/range on a specific LED ring.
--- each point can be a decimal, LEDs will fade for in between values. 
+-- each point can be a decimal, LEDs will fade for in between values.
 -- @tparam integer ring : ring index (1-based)
 -- @tparam number from : from angle in radians
 -- @tparam number to : to angle in radians
 -- @tparam integer level : LED brightness in [0, 15]
-function Arc:segment(ring, from, to, level)
+-- @tparam bool rel : relative brightness (add to existing level)
+function Arc:segment(ring, from, to, level, rel)
   local tau = math.pi * 2
 
   local function overlap(a, b, c, d)
@@ -136,8 +140,14 @@ function Arc:segment(ring, from, to, level)
 
     local o = overlap_segments(from, to, sa, sb)
     m[i] = util.round(o / sl * level)
-    self:led(ring, i, m[i])
+    self:led(ring, i, m[i], rel)
   end
+end
+
+--- intensity
+-- @tparam integer i : intensity [0, 15]
+function Arc:intensity(i)
+  _norns.monome_intensity(self.dev, i)
 end
 
 --- create device, returns object with handler and send

@@ -118,10 +118,6 @@ int dev_midi_virtual_init(void *self) {
         fprintf(stderr, "failed to open alsa virtual device.\n");
         return -1;
     }
-    if (snd_rawmidi_open(&midi->handle_in, &midi->handle_out, "virtual", 0) < 0) {
-        fprintf(stderr, "failed to open alsa virtual device.\n");
-        return -1;
-    }
 
     // trigger reading
     snd_rawmidi_read(midi->handle_in, NULL, 0);
