@@ -44,7 +44,7 @@ amixer --device hw:sndrpimonome set Master 100% on
 sudo alsactl store
 
 # change boot/cmdline for screen
-sudo sed -e '/dtoverlay=ssd1322-spi/ s/^#*/#/' -i /boot/config.txt
+sudo sed -e '/dtoverlay=ssd1325-spi/ s/^#*/#/' -i /boot/config.txt
 sudo sed -e '/spidev.bufsiz/! s/$/ spidev.bufsiz=8192/' -i /boot/cmdline.txt
 
 # install packages
@@ -66,6 +66,3 @@ if [ ! -d /home/we/dust/audio/common ]; then
 	rm dust-audio-common.tgz
 fi
 
-
-# cleanup
-rm -rf ~/update/*

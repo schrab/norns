@@ -21,7 +21,7 @@
 #include "events.h"
 #include "hardware/io.h"
 #include "hardware/screen.h"
-#include "hardware/screen/ssd1322.h"
+#include "hardware/screen/ssd1325.h"
 #include "screen.h"
 #include "screen_results.h"
 
@@ -301,7 +301,7 @@ void screen_update(void) {
 #endif
 
     cairo_surface_flush(surface);
-    ssd1322_update(surface, surface_may_have_color);
+    ssd1325_update(surface, surface_may_have_color);
 }
 
 void screen_save(void) {
@@ -348,7 +348,7 @@ void screen_brightness(int v) {
     // is limited and offset.
     v += 16;
 
-    ssd1322_set_brightness((uint8_t)v);
+    ssd1325_set_brightness((uint8_t)v);
 }
 
 void screen_contrast(int c) {
@@ -358,7 +358,7 @@ void screen_contrast(int c) {
     if (c > 255) {
         c = 255;
     }
-    ssd1322_set_contrast((uint8_t)c);
+    ssd1325_set_contrast((uint8_t)c);
 }
 
 void screen_gamma(double g) {
@@ -366,11 +366,11 @@ void screen_gamma(double g) {
         g = 0;
     }
 
-    ssd1322_set_gamma(g);
+    ssd1325_set_gamma(g);
 }
 
 void screen_invert(int inverted) {
-    ssd1322_set_display_mode((inverted != 0) ? SSD1322_DISPLAY_MODE_INVERT : SSD1322_DISPLAY_MODE_NORMAL);
+    ssd1325_set_display_mode((inverted != 0) ? SSD1325_DISPLAY_MODE_INVERT : SSD1325_DISPLAY_MODE_NORMAL);
 }
 
 void screen_level(int z) {
