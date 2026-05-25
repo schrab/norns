@@ -46,10 +46,8 @@ int open_spi() {
 
 int ssd1325_write_command(uint8_t command, uint8_t data_len, ...) {
     va_list args;
-    uint8_t cmd_buf[1];
-    uint8_t data_buf[256];
-    struct spi_ioc_transfer cmd_transfer = {0};
-    struct spi_ioc_transfer data_transfer = {0};
+    uint8_t tx_buf[256];
+    struct spi_ioc_transfer transfer = {0};
 
     pthread_mutex_lock(&lock);
 
@@ -60,33 +58,26 @@ int ssd1325_write_command(uint8_t command, uint8_t data_len, ...) {
 
     gpiod_line_set_value(gpio_dc, 0);
 
-    cmd_buf[0] = command;
-    cmd_transfer.tx_buf = (unsigned long)cmd_buf;
-    cmd_transfer.len = (uint32_t)sizeof(cmd_buf);
-
-    if (ioctl(spidev_fd, SPI_IOC_MESSAGE(1), &cmd_transfer) < 0) {
-        fprintf(stderr, "%s: could not send command-message.\n", __func__);
-        goto fail;
-    }
+    tx_buf[0] = command;
 
     if (data_len > 0) {
-        gpiod_line_set_value(gpio_dc, 1);
-
         va_start(args, data_len);
 
         for (uint8_t i = 0; i < data_len; i++) {
-            data_buf[i] = va_arg(args, int);
+            tx_buf[1 + i] = va_arg(args, int);
         }
 
         va_end(args);
+    }
 
-        data_transfer.tx_buf = (unsigned long)data_buf;
-        data_transfer.len = (uint32_t)data_len;
+    // SSD1325 datasheet Command Table: ALL init command bytes are sent with D/C=0.
+    // The command byte and all parameter bytes are sent as a single SPI transfer.
+    transfer.tx_buf = (unsigned long)tx_buf;
+    transfer.len = (uint32_t)(1 + data_len);
 
-        if (ioctl(spidev_fd, SPI_IOC_MESSAGE(1), &data_transfer) < 0) {
-            fprintf(stderr, "%s: could not send data-message.\n", __func__);
-            goto fail;
-        }
+    if (ioctl(spidev_fd, SPI_IOC_MESSAGE(1), &transfer) < 0) {
+        fprintf(stderr, "%s: could not send command %02x.\n", __func__, command);
+        goto fail;
     }
 
     pthread_mutex_unlock(&lock);
@@ -269,10 +260,13 @@ void ssd1325_refresh() {
 
     pthread_mutex_lock(&lock);
 
-    // Convert ARGB32 to 4-bit grayscale nibble-packed
+    // SSD1325 remap 0x56 sets vertical address increment:
+    // data must be packed column-by-column (all rows for each column pair).
+    // This matches the fbtft driver's write_vmem loop order.
     if (should_translate_color) {
-        for (uint32_t y = 0; y < SSD1325_PIXEL_HEIGHT; y++) {
-            for (uint32_t x = 0; x < SSD1325_PIXEL_WIDTH; x += 2) {
+        uint8_t *dst = spidev_buffer;
+        for (uint32_t x = 0; x < SSD1325_PIXEL_WIDTH; x += 2) {
+            for (uint32_t y = 0; y < SSD1325_PIXEL_HEIGHT; y++) {
                 const uint32_t idx = (y * SSD1325_PIXEL_WIDTH + x);
                 const uint8_t *pixel1 = (uint8_t *)(surface_buffer + idx);
                 const uint8_t *pixel2 = (uint8_t *)(surface_buffer + idx + 1);
@@ -286,12 +280,13 @@ void ssd1325_refresh() {
                 uint8_t g4_1 = (gray1 >> 4) & 0x0F;
                 uint8_t g4_2 = (gray2 >> 4) & 0x0F;
 
-                spidev_buffer[(y * SSD1325_PIXEL_WIDTH + x) / 2] = (g4_1 << 4) | g4_2;
+                *dst++ = (g4_1 << 4) | g4_2;
             }
         }
     } else {
-        for (uint32_t y = 0; y < SSD1325_PIXEL_HEIGHT; y++) {
-            for (uint32_t x = 0; x < SSD1325_PIXEL_WIDTH; x += 2) {
+        uint8_t *dst = spidev_buffer;
+        for (uint32_t x = 0; x < SSD1325_PIXEL_WIDTH; x += 2) {
+            for (uint32_t y = 0; y < SSD1325_PIXEL_HEIGHT; y++) {
                 const uint32_t idx = (y * SSD1325_PIXEL_WIDTH + x);
                 const uint8_t *pixel1 = (uint8_t *)(surface_buffer + idx);
                 const uint8_t *pixel2 = (uint8_t *)(surface_buffer + idx + 1);
@@ -302,7 +297,7 @@ void ssd1325_refresh() {
                 uint8_t g4_1 = (g1 >> 4) & 0x0F;
                 uint8_t g4_2 = (g2 >> 4) & 0x0F;
 
-                spidev_buffer[(y * SSD1325_PIXEL_WIDTH + x) / 2] = (g4_1 << 4) | g4_2;
+                *dst++ = (g4_1 << 4) | g4_2;
             }
         }
     }
