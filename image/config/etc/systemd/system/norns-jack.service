@@ -1,5 +1,13 @@
 [Unit]
 After=sound.target
+# Restarting norns orphans jackd's shared-memory registry:
+#   JACK semaphore error: semop (Invalid argument)
+#   jack_shm_lock_registry fails... / jack_client_open() status = 17
+# jackd stays active but serves nothing, and because SYSTEM>RESTART only
+# touches norns-main, the wedge is unrecoverable without restarting jackd.
+# PartOf propagates norns-main stop/restart to jackd, so they cycle
+# together and the registry is rebuilt from a clean slate.
+PartOf=norns-main.service
 
 [Service]
 Type=simple

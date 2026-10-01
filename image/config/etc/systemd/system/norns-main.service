@@ -1,6 +1,10 @@
 [Unit]
 After=norns-jack.service norns-sclang.service
 Requires=norns-jack.service
+# BindsTo: if jackd dies, norns must die too rather than linger in a
+# restart loop against a dead audio server. PartOf on the jack unit
+# provides the reverse direction (norns restart cycles jack).
+BindsTo=norns-jack.service
 
 [Service]
 Type=simple
