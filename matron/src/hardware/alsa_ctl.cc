@@ -33,11 +33,11 @@ static int alsa_ctl_set(const char *name, int enumerated, int value) {
     snd_ctl_elem_value_set_interface(elem, SND_CTL_ELEM_IFACE_MIXER);
     snd_ctl_elem_value_set_name(elem, name);
     if (enumerated) {
-        snd_ctl_elem_value_set_enumerated_item(elem, value);
+        snd_ctl_elem_value_set_enumerated(elem, value);
     } else {
         // Master Playback Volume is a stereo pair sharing one register value
-        snd_ctl_elem_value_set_value(elem, 0, value);
-        snd_ctl_elem_value_set_value(elem, 1, value);
+        snd_ctl_elem_value_set_integer(elem, 0, value);
+        snd_ctl_elem_value_set_integer(elem, 1, value);
     }
 
     int err = snd_ctl_elem_write(ctl, elem);
