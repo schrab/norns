@@ -65,6 +65,15 @@ diff every unit before touching the device.
 `norns-watcher.service` exists upstream but is **not** in `norns.target`'s `Requires`
 list, so it never runs.
 
+**Enable `norns.target`, don't just start it.** `systemctl start norns.target` runs the
+stack once; only `systemctl enable norns.target` registers it at boot (via
+`multi-user.target.wants`). Skipping enable leaves the box working until the next reboot,
+then blank. This bit once already — the target was disabled and `norns-main` never started
+on cold boot. Verify after any service change with `systemctl is-enabled norns.target`.
+
+The Fates image also keeps its own copies of the old unit files under
+`/home/we/fates/install/norns/files/` — useful reference for rebuilding an image.
+
 ## jackd Wedge (recurring)
 Restarting `norns-main` orphans jackd's shared-memory registry:
 
@@ -140,8 +149,17 @@ git checkout main && git submodule update --init --recursive && \
   sudo systemctl disable norns-main && sudo systemctl enable norns-matron norns-crone
 ```
 
-The old unit files stay on disk because migration only disables them. main's build uses
-`libnanomsg-dev` (still installed) and doesn't need nng.
+The old unit files were moved to `/root/norns-{matron,crone}.service.disabled` (not
+deleted) and originals also exist under `/home/we/fates/install/norns/files/`. To roll
+back fully, restore them and re-enable:
+
+```
+sudo mv /root/norns-matron.service.disabled /etc/systemd/system/norns-matron.service
+sudo mv /root/norns-crone.service.disabled   /etc/systemd/system/norns-crone.service
+sudo systemctl enable norns-matron norns-crone && sudo reboot
+```
+
+main's build uses `libnanomsg-dev` (still installed) and doesn't need nng.
 
 ## Common Issues
 - **update.sh overwrites repo**: the Fates update script replaces `/home/we/norns` with the
