@@ -18,7 +18,8 @@ def build(bld):
         '../matron/src/hardware/platform.cc',
         '../matron/src/hardware/screen.cc',
         '../matron/src/hardware/stat.cc',
-	    '../matron/src/hardware/screen/ssd1322.cc',
+        # Fates shield uses an SSD1325 panel, not the stock ssd1322
+        '../matron/src/hardware/screen/ssd1325.cc',
         '../matron/src/hardware/input/gpio.cc',
         '../matron/src/args.cc',
         '../matron/src/events.cc',

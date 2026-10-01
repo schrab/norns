@@ -21,16 +21,16 @@ static pthread_t ssd1325_pthread_t;
 #define SPIDEV_BUFFER_LEN (SSD1325_PIXEL_WIDTH * SSD1325_PIXEL_HEIGHT / 2)
 #define SURFACE_BUFFER_LEN (SSD1325_PIXEL_WIDTH * SSD1325_PIXEL_HEIGHT * sizeof(uint32_t))
 
-int open_spi() {
+int open_spi(const char *path) {
     uint8_t mode = SPI_MODE_0;
     uint8_t bits_per_word = SPI0_BUS_WIDTH;
     uint8_t little_endian = 0;
     uint32_t speed_hz = 1200000000 / 64;
 
-    int fd = open(SPIDEV_0_0_PATH, O_RDWR | O_SYNC);
+    int fd = open(path, O_RDWR | O_SYNC);
 
     if (fd < 0) {
-        fprintf(stderr, "(screen) couldn't open %s\n", SPIDEV_0_0_PATH);
+        fprintf(stderr, "(screen) couldn't open %s\n", path);
         return -1;
     }
 
@@ -124,13 +124,13 @@ void ssd1325_init() {
         return;
     }
 
-    surface_buffer = calloc(SURFACE_BUFFER_LEN, 1);
+    surface_buffer = (uint32_t *)calloc(SURFACE_BUFFER_LEN, 1);
     if (surface_buffer == NULL) {
         fprintf(stderr, "%s: couldn't allocate surface_buffer\n", __func__);
         return;
     }
 
-    spidev_buffer = calloc(SPIDEV_BUFFER_LEN, 1);
+    spidev_buffer = (uint8_t *)calloc(SPIDEV_BUFFER_LEN, 1);
     if (spidev_buffer == NULL) {
         fprintf(stderr, "%s: couldn't allocate spidev_buffer\n", __func__);
         return;
@@ -354,7 +354,7 @@ void ssd1325_set_refresh_rate(uint8_t hz) {
 }
 
 uint8_t *ssd1325_resize_buffer(size_t size) {
-    spidev_buffer = realloc(spidev_buffer, size);
+    spidev_buffer = (uint8_t *)realloc(spidev_buffer, size);
     return spidev_buffer;
 }
 
