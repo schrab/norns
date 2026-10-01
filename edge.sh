@@ -2,6 +2,6 @@
 set -e
 cd "$(dirname "$0")"
 git pull
-git submodule update
-./waf configure
-./waf -j2
+git submodule update --init --recursive
+./waf configure --release
+./waf build --release -j2
