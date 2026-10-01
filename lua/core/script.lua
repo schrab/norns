@@ -120,6 +120,8 @@ Script.clear = function()
   audio.add_params()
   -- add clock menu
   clock.add_params()
+  -- push saved mix state to crone + codec; param actions don't fire on add
+  audio.apply_state()
   -- re-enable crow clock if needed
   if params:string("clock_source") == "crow" then
     crow.input[1].change = function() end

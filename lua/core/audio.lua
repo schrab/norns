@@ -141,6 +141,12 @@ Audio.headphone_gain = function(gain)
   _norns.gain_hp(gain)
 end
 
+--- set codec input mux (Fates wm8731 hardware).
+-- @tparam integer mux 0 = line in, 1 = mic
+Audio.input_mux = function(mux)
+  _norns.input_mux(mux)
+end
+
 --- set level for ADC input.
 -- @param level in [0, 1]
 Audio.level_adc = function(level)
@@ -612,8 +618,27 @@ function Audio.file_info(path)
 end
 
 
+-- push saved mix state to crone and the codec. param actions only run when a
+-- param is touched, so without this the hardware sits at crone / udev-restore
+-- defaults while LEVELS displays the saved values.
+Audio.apply_state = function()
+  audio.level_dac(util.dbamp(norns.state.mix.output))
+  audio.level_adc(util.dbamp(norns.state.mix.input))
+  audio.level_monitor(util.dbamp(norns.state.mix.monitor))
+  audio.level_eng(util.dbamp(norns.state.mix.engine))
+  audio.level_cut(util.dbamp(norns.state.mix.cut))
+  audio.level_tape(util.dbamp(norns.state.mix.tape))
+  if norns.state.mix.monitor_mode == 1 then
+    audio.monitor_stereo()
+  else
+    audio.monitor_mono()
+  end
+  audio.headphone_gain(norns.state.mix.headphone_gain)
+  audio.input_mux(norns.state.mix.input_mux - 1)
+end
+
 function Audio.add_params()
-  params:add_group("LEVELS",9)
+  params:add_group("LEVELS",10)
   params:add_control("output_level", "output", 
     cs.new(-math.huge,6,'db',0,norns.state.mix.output,"dB"))
   params:set_action("output_level",
@@ -680,6 +705,14 @@ function Audio.add_params()
       norns.state.mix.headphone_gain = x
     end)
   params:set_save("headphone_gain", false)
+  params:add_option("input_mux", "input mux", {"LINE IN", "MIC"},
+    norns.state.mix.input_mux)
+  params:set_action("input_mux",
+    function(x)
+      audio.input_mux(x - 1)
+      norns.state.mix.input_mux = x
+    end)
+  params:set_save("input_mux", false)
   
   params:add_group("REVERB",11)
   params:add_option("reverb", "reverb", {"OFF", "ON"}, 

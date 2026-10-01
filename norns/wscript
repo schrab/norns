@@ -13,6 +13,7 @@ def build(bld):
         '../matron/src/osc.cc',
         '../matron/src/hardware/battery.cc',
         '../matron/src/hardware/i2c.cc',
+        '../matron/src/hardware/alsa_ctl.cc',
         '../matron/src/hardware/input.cc',
         '../matron/src/hardware/io.cc',
         '../matron/src/hardware/platform.cc',

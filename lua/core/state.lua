@@ -18,7 +18,10 @@ state.mix.engine = 0
 state.mix.cut = 0
 state.mix.tape = 0
 state.mix.monitor_mode = 1
-state.mix.headphone_gain = 40
+-- 56 maps to codec master volume 112, the level /etc/rc.local used to set by
+-- raw i2cset on the Fates (WM8731 master is 0-127, param scale is 0-63)
+state.mix.headphone_gain = 56
+state.mix.input_mux = 1
 state.mix.aux = 2
 state.mix.ins = 1
 
@@ -125,6 +128,7 @@ state.save_state = function()
   io.write("norns.state.mix.ins = " .. norns.state.mix.ins .. "\n")
   io.write("norns.state.mix.monitor_mode = " .. norns.state.mix.monitor_mode .. "\n")
   io.write("norns.state.mix.headphone_gain = " .. norns.state.mix.headphone_gain .. "\n")
+  io.write("norns.state.mix.input_mux = " .. norns.state.mix.input_mux .. "\n")
   io.write("norns.state.mix.rev_eng_input = " .. norns.state.mix.rev_eng_input .. "\n")
   io.write("norns.state.mix.rev_cut_input = " .. norns.state.mix.rev_cut_input .. "\n")
   io.write("norns.state.mix.rev_monitor_input = " .. norns.state.mix.rev_monitor_input .. "\n")

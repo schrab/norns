@@ -22,6 +22,7 @@
 #include <lualib.h>
 
 // norns
+#include "alsa_ctl.h"
 #include "clock.h"
 #include "clocks/clock_crow.h"
 #include "clocks/clock_internal.h"
@@ -173,6 +174,9 @@ static int _screen_display_image_region(lua_State *l);
 // i2c
 static int _gain_hp(lua_State *l);
 static int _adc_rev(lua_State *l);
+
+// wm8731 codec (fates, via alsa ctl)
+static int _input_mux(lua_State *l);
 
 // osc
 static int _osc_send(lua_State *l);
@@ -585,6 +589,7 @@ void w_init(void) {
 
     // analog output control
     lua_register_norns("gain_hp", &_gain_hp);
+    lua_register_norns("input_mux", &_input_mux);
     lua_register_norns("adc_rev", &_adc_rev);
 
     // osc
@@ -1540,7 +1545,25 @@ int _screen_current_point(lua_State *l) {
 int _gain_hp(lua_State *l) {
     lua_check_num_args(1);
     int level = (int)luaL_checkinteger(l, 1);
-    i2c_hp(level);
+    if (platform_factory()) {
+        i2c_hp(level);
+    } else {
+        // WM8731 (Fates): param scale 0-63 -> codec master volume 0-127
+        alsa_ctl_set_volume(level * 2);
+    }
+    lua_settop(l, 0);
+    return 0;
+}
+
+/***
+ * codec: set input mux
+ * @function input_mux
+ * @tparam integer mux 0 = line in, 1 = mic
+ */
+int _input_mux(lua_State *l) {
+    lua_check_num_args(1);
+    int mux = (int)luaL_checkinteger(l, 1);
+    alsa_ctl_set_input_mux(mux);
     lua_settop(l, 0);
     return 0;
 }

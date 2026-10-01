@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "alsa_ctl.h"
 #include "args.h"
 #include "battery.h"
 #include "clock.h"
@@ -119,6 +120,7 @@ int matron_main(int argc, char **argv) {
     input_init();
 
     i2c_init();
+    alsa_ctl_init();
 
     fprintf(stderr, "running startup...\n");
     // i/o subsystems are ready; run user startup routine

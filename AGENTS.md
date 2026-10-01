@@ -72,35 +72,41 @@ dtoverlay=fates-ssd1325          # legacy kernel overlay; userspace driver repla
 code; don't remove).
 
 ### UART-MIDI
-Chain: `midi-uart0` overlay (31250-baud PL011 on GPIO14/15) → **ttymidi** daemon
-([okyeron/ttymidi](https://github.com/okyeron/ttymidi), run with
-`-s /dev/ttyAMA0 -b 31250`) → ALSA sequencer ports → norns picks it up like any USB
-MIDI interface, no norns-side config needed. Verify with `amidi -l` / `aconnect -l`.
-ttymidi ships a `ttymidi.service`; the Fates image launched it from `/etc/rc.local`
-(copied from `/home/we/fates/install/norns/files/rc.local`). Exact launch line on this
-device still unverified (device offline when checked 2026-10-01).
+Verified on the device (2026-10-01). Chain: `midi-uart0` overlay (PL011 on GPIO14/15) →
+**ttymidi** daemon ([okyeron/ttymidi](https://github.com/okyeron/ttymidi)) → ALSA
+sequencer → norns picks it up like any USB MIDI interface. `ttymidi.service` is enabled
+and runs `/usr/bin/ttymidi -s /dev/ttyAMA0 -b 38400 -n ttymidi` — note **38400**, not
+31250. ttymidi's ALSA client (128) is bridged through a Virtual RawMIDI client so
+portmidi can use it. Verify with `aconnect -l`.
 
 ### WM8731 audio (card `sndrpiproto`; `/etc/asound.conf` maps default to it)
-- **One** DAC volume pair ("Master Playback Volume", LOUT1V/ROUT1V) feeds the line outs
-  (LOUT/ROUT) *and* the headphone driver (LHPOUT/RHPOUT). Separate level adjustments per
-  output are **not possible with this codec** — a line/headphone level difference is a
-  wiring property, not a mixer property.
-- Input mux is hardware-switchable: DAPM enum `Input Select` with options `Line In` /
-  `Mic` (old kernels expose it as `Input Mux`):
-  `amixer -c sndrpiproto cset name='Input Select' 'Mic'`
-- Other controls: `Capture Volume` (0–31), `Mic Boost` (+20 dB), `Sidetone` (input→
-  output bypass monitor), `Line`/`Mic` capture switches, `ADC High Pass Filter`,
-  `Playback Deemphasis`.
-- The 2.9.x image build applied a one-time fix using bare numids (`amixer cset numid=3
-  29`, `numid=4/8/10/13 on`, then `alsactl store`) — see the temp note near line 2375.
-  Map them with `amixer -c sndrpiproto contents` before reusing; prefer names over numids.
-- **Mic/line Lua switch**: the old menu code is in *no* reachable git history (this fork,
-  all branches and tags, and the fates-project fork tips) — most likely a device-local
-  edit wiped by an update (the update.sh-overwrites-repo issue). Reimplementation is
-  small: a SETTINGS/MIX menu entry calling `norns.system_cmd` with the amixer line
-  above, re-applied via `hook.system_post_startup` (`lua/core/norns.lua:268`) on every
-  start, persisted with `sudo alsactl store`. Confirm the exact control name on the
-  device first.
+- **One** DAC volume pair (`Master Playback Volume`, numid=1, 0–127, values=2) feeds the
+  line outs (LOUT/ROUT) *and* the headphone driver (LHPOUT/RHPOUT). Separate level
+  adjustments per output are **not possible with this codec** — a line/headphone level
+  difference is a wiring property, not a mixer property.
+- Control map (verified 2026-10-01): `Master Playback Volume` (1), `Master Playback ZC
+  Switch` (2), `Capture Volume` (3, 0–31), `Line Capture Switch` (4), `Mic Boost Volume`
+  (5, 0–1), `Mic Capture Switch` (6), `Sidetone Playback Volume` (7, 0–3),
+  `ADC High Pass Filter Switch` (8), `Store DC Offset Switch` (9), `Playback Deemphasis
+  Switch` (10), output mixer switches (11/12/13), and **`Input Mux` (14)** — a 2-item
+  enum: 0 = `Line In`, 1 = `Mic`.
+- **matron drives the codec directly** via `matron/src/hardware/alsa_ctl.cc` (ALSA ctl
+  interface; kernel-driver-coherent, unlike raw i2c. `ALSA` is already in matron's
+  uselib). Bindings: `_norns.gain_hp` — headphone gain, param 0–63 → master 0–127, falls
+  back to the TPA6130A2 `i2c_hp` on factory norns (where the ALSA card is absent) — and
+  `_norns.input_mux` (0/1). Lua: `Audio.headphone_gain`, `Audio.input_mux`; LEVELS
+  params `headphone_gain` + `input mux`; persisted via `norns.state.mix.*`.
+- **`Audio.apply_state()`** (called from `Script.clear` after params are rebuilt) pushes
+  saved mix state to crone + codec. Param actions only run when a param is *touched*, so
+  before this existed the saved LEVELS values were never applied at boot — monitor
+  level/matrix sat at crone defaults (silent matrix), which read as "monitor switch
+  doesn't work".
+- `/etc/rc.local` still carries the boot-time `i2cset -f -y 1 0x1a 0x05 0x70` (WM8731
+  LOUT1V=112). Superseded by apply_state/`gain_hp` (same value, now from
+  `state.mix.headphone_gain` = 56). Raw i2c writes bypass the kernel driver's register
+  cache — don't add more of them. The 2.9.x image-build numid fix (`temp/` note ~line
+  2375) is covered by udev `alsactl` restore of `/var/lib/alsa/asound.state` at card
+  probe; norns then overrides with its own state.
 
 ## systemd Layout
 Pre-3.0.2 the device ran two services (`norns-matron`, `norns-crone`) pointing at
@@ -228,6 +234,7 @@ The 2.9.x build (the tag) uses `libnanomsg-dev` (still installed) and doesn't ne
   drops, crashes.
 - **Missing libmonome**: `git clone https://github.com/monome/libmonome && cd libmonome &&
   ./waf configure --prefix=/usr && sudo ./waf install`
-- **SSH**: the device needs a password (`we`@192.168.8.163). `sshpass` isn't installed
-  here; use an `SSH_ASKPASS` script, and delete it afterwards. `fates` resolves to IPv6
-  only — use the IPv4 address.
+- **SSH**: key auth is set up (2026-10-01) — `ssh fates` from this machine (config entry
+  pins `we`@192.168.8.163 + `id_ed25519`, `IdentitiesOnly`; host keys for both `fates`
+  and the IP are in known_hosts). `fates` alone resolves to IPv6 only — the config entry
+  takes care of it. Password fallback: user `we`.
