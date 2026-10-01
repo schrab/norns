@@ -52,6 +52,56 @@ recoverable from git — a reimage needs them again:
   `maiden-repl/wscript:12` fails configure.
 - **`~/matronrc.lua`** copied from the repo, or the 4th encoder never binds.
 
+## Fates Hardware Configuration
+The only annotated copy of the original Fates image config lives in the **untracked**
+`temp/tue_may_26_2026_updating_norns_without_losing_custom_drivers.md` — consult it
+before touching boot config. Recorded here so the repo carries it too:
+
+### Boot overlays (`/boot/config.txt`)
+```
+enable_uart=1
+dtoverlay=i2s-mmap
+dtoverlay=miniuart-bt            # BT moved to mini-UART, freeing PL011 (ttyAMA0)
+dtoverlay=uart0
+dtoverlay=midi-uart0             # PL011 pinned to MIDI baud (31250) for DIN MIDI
+dtoverlay=rpi-proto              # WM8731 codec on I2S
+dtoverlay=fates-buttons-4encoders
+dtoverlay=fates-ssd1325          # legacy kernel overlay; userspace driver replaced it
+```
+`hciuart` must stay disabled — `update/update.sh:459` already does this (stock shield
+code; don't remove).
+
+### UART-MIDI
+Chain: `midi-uart0` overlay (31250-baud PL011 on GPIO14/15) → **ttymidi** daemon
+([okyeron/ttymidi](https://github.com/okyeron/ttymidi), run with
+`-s /dev/ttyAMA0 -b 31250`) → ALSA sequencer ports → norns picks it up like any USB
+MIDI interface, no norns-side config needed. Verify with `amidi -l` / `aconnect -l`.
+ttymidi ships a `ttymidi.service`; the Fates image launched it from `/etc/rc.local`
+(copied from `/home/we/fates/install/norns/files/rc.local`). Exact launch line on this
+device still unverified (device offline when checked 2026-10-01).
+
+### WM8731 audio (card `sndrpiproto`; `/etc/asound.conf` maps default to it)
+- **One** DAC volume pair ("Master Playback Volume", LOUT1V/ROUT1V) feeds the line outs
+  (LOUT/ROUT) *and* the headphone driver (LHPOUT/RHPOUT). Separate level adjustments per
+  output are **not possible with this codec** — a line/headphone level difference is a
+  wiring property, not a mixer property.
+- Input mux is hardware-switchable: DAPM enum `Input Select` with options `Line In` /
+  `Mic` (old kernels expose it as `Input Mux`):
+  `amixer -c sndrpiproto cset name='Input Select' 'Mic'`
+- Other controls: `Capture Volume` (0–31), `Mic Boost` (+20 dB), `Sidetone` (input→
+  output bypass monitor), `Line`/`Mic` capture switches, `ADC High Pass Filter`,
+  `Playback Deemphasis`.
+- The 2.9.x image build applied a one-time fix using bare numids (`amixer cset numid=3
+  29`, `numid=4/8/10/13 on`, then `alsactl store`) — see the temp note near line 2375.
+  Map them with `amixer -c sndrpiproto contents` before reusing; prefer names over numids.
+- **Mic/line Lua switch**: the old menu code is in *no* reachable git history (this fork,
+  all branches and tags, and the fates-project fork tips) — most likely a device-local
+  edit wiped by an update (the update.sh-overwrites-repo issue). Reimplementation is
+  small: a SETTINGS/MIX menu entry calling `norns.system_cmd` with the amixer line
+  above, re-applied via `hook.system_post_startup` (`lua/core/norns.lua:268`) on every
+  start, persisted with `sudo alsactl store`. Confirm the exact control name on the
+  device first.
+
 ## systemd Layout
 Pre-3.0.2 the device ran two services (`norns-matron`, `norns-crone`) pointing at
 `build/matron/matron` and `build/crone/crone`. 3.0.2 converged these into **one** binary
