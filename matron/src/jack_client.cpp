@@ -20,7 +20,7 @@ static uint64_t g_last_total_frames = 0ULL;
 static pthread_mutex_t g_time_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int xrun_callback(void *) {
-    std::atomic_fetch_add(&xrun_count, 1);
+    std::atomic_fetch_add(&xrun_count, uint32_t{1});
     return 0;
 }
 
@@ -53,7 +53,7 @@ float jack_client_get_cpu_load() {
 }
 
 uint32_t jack_client_get_xrun_count() {
-    uint32_t count = std::atomic_exchange(&xrun_count, 0);
+    uint32_t count = std::atomic_exchange(&xrun_count, uint32_t{0});
     return count;
 }
 
