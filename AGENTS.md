@@ -9,7 +9,10 @@ The screen uses direct SPI from userspace via a custom driver
 (`matron/src/hardware/screen/ssd1325.cc`) instead of the old fbtft kernel driver. No
 device tree overlay — all SPI control is GPIO (D/C), spidev (data), and libgpiod.
 
-Currently on `upgrade/3.0.2` (merged upstream norns **v3.0.2**). `main` is still 2.9.x.
+Both `main` and `upgrade/3.0.2` are at norns **v3.0.2** + the Fates fixes — `main` was
+fast-forwarded to `upgrade/3.0.2` (`cc0354d9`) after a verified clean cold boot, and the
+device runs this. The old 2.9.x state lives **only** in the `pre-upstream-3.0.2` tag
+(`1e56b315`), pushed to origin. Working on `main` directly is fine.
 
 ## Architecture Notes
 - **SSD1325 protocol**: all bytes in a command sequence (command byte + parameter bytes)
@@ -74,8 +77,8 @@ on cold boot. Verify after any service change with `systemctl is-enabled norns.t
 The Fates image also keeps its own copies of the old unit files under
 `/home/we/fates/install/norns/files/` — useful reference for rebuilding an image.
 
-## jackd Wedge (recurring)
-Restarting `norns-main` orphans jackd's shared-memory registry:
+## jackd Wedge (fixed; recovery below is a fallback)
+Restarting `norns-main` used to orphan jackd's shared-memory registry:
 
 ```
 JACK semaphore error: semop (Invalid argument)
@@ -84,8 +87,12 @@ jack_client_open() failed; status = 17
 unable to connect to JACK server → child killed (signal 6) → start-limit-hit
 ```
 
-jackd stays `active` but serves nothing, and SYSTEM>RESTART can't recover because it only
-restarts `norns-main`. Recovery:
+**Fixed in `5ffbfe73`**: `norns-jack.service` carries `PartOf=norns-main.service` and
+`norns-main.service` carries `BindsTo=norns-jack.service`, so the two cycle together.
+Verified with three consecutive plain `systemctl restart norns-main` runs and a cold boot —
+a bare restart, including SYSTEM>RESTART, is safe as long as the device's installed unit
+files match the repo copies. If the wedge ever reappears (stale units on the device, or a
+different cause), recovery:
 
 ```
 sudo systemctl stop norns-main norns-sclang
@@ -134,17 +141,18 @@ binary.
 2. Commit and push to `https://github.com/schrab/norns` (branch `upgrade/3.0.2`)
 3. On Fates RPi (192.168.8.163): `cd ~/norns && git pull && git submodule update --init
    --recursive && ./waf build --release`
-4. Restart via the jack-recovery sequence above, **not** a bare `systemctl restart
-   norns-main`
+4. A bare `systemctl restart norns-main` is safe since the PartOf/BindsTo coupling; use
+   the jack-recovery sequence above only if the wedge reappears
 5. Cold boot is a separate verification — a service start working does not prove the boot
    path works
 
 ## Rollback
-`main` is the known-good 2.9.x state and is never touched by upgrade work. From the
+`main` is now 3.0.2 (fast-forwarded), so 2.9.x lives only in the `pre-upstream-3.0.2` tag.
+Branch off the tag when rolling back — don't `git checkout main` expecting 2.9.x. From the
 device:
 
 ```
-git checkout main && git submodule update --init --recursive && \
+git checkout pre-upstream-3.0.2 && git submodule update --init --recursive && \
   ./waf configure --release && ./waf build --release && \
   sudo systemctl disable norns-main && sudo systemctl enable norns-matron norns-crone
 ```
@@ -159,7 +167,7 @@ sudo mv /root/norns-crone.service.disabled   /etc/systemd/system/norns-crone.ser
 sudo systemctl enable norns-matron norns-crone && sudo reboot
 ```
 
-main's build uses `libnanomsg-dev` (still installed) and doesn't need nng.
+The 2.9.x build (the tag) uses `libnanomsg-dev` (still installed) and doesn't need nng.
 
 ## Common Issues
 - **update.sh overwrites repo**: the Fates update script replaces `/home/we/norns` with the
