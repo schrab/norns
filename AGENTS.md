@@ -146,8 +146,8 @@ The old unit files stay on disk because migration only disables them. main's bui
 ## Common Issues
 - **update.sh overwrites repo**: the Fates update script replaces `/home/we/norns` with the
   packaged copy, losing local changes and branch state. Don't run SYSTEM>UPDATE on this
-  box. `update/update.sh:465` also still has `hw:sndrpimonome` in its `amixer` call —
-  same wrong card as the systemd unit bug, different line.
+  box. The `hw:sndrpiproto` fixes in it (amixer card, `ssd1325-spi` overlay) are for
+  building Fates images, not for this device's in-place upgrade.
 - **Under-voltage detected**: the Pi's 5V supply is marginal. Causes SPI glitches, USB
   drops, crashes.
 - **Missing libmonome**: `git clone https://github.com/monome/libmonome && cd libmonome &&

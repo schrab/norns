@@ -462,11 +462,13 @@ do_install() {
 	find "$WE_DIR/dust" -name ._.DS_Store -delete
 
 	# set alsa mixer
-	amixer --device hw:sndrpimonome set Master 100% on
+	# Fates audio codec is a WM8731 on card sndrpiproto, not monome's sndrpimonome
+	amixer --device hw:sndrpiproto set Master 100% on
 	$SUDO alsactl store
 
 	# change boot/cmdline for screen
-	$SUDO sed -e '/dtoverlay=ssd1322-spi/ s/^#*/#/' -i "$ROOT/boot/config.txt"
+	# Fates uses an SSD1325 panel, so the overlay name differs from the norns ssd1322
+	$SUDO sed -e '/dtoverlay=ssd1325-spi/ s/^#*/#/' -i "$ROOT/boot/config.txt"
 	$SUDO sed -e '/spidev.bufsiz/! s/$/ spidev.bufsiz=8192/' -i "$ROOT/boot/cmdline.txt"
 
 	# install packages
