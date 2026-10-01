@@ -17,7 +17,11 @@ Environment="JACK_NO_AUDIO_RESERVATION=1"
 LimitRTPRIO=95
 LimitMEMLOCK=infinity
 # Fates audio codec is a WM8731 on card sndrpiproto, not monome's sndrpimonome
-ExecStart=/usr/bin/jackd -R -P 95 -d alsa -d hw:sndrpiproto -r 48000 -n 3 -p 128 -S -s
+# jackd 1.9.22 is a source build in /usr/local (system jackd2 1.9.12 libs are
+# dpkg-diverted aside as /lib/arm-linux-gnueabihf/*.distrib). Rollback:
+# dpkg-divert --rename --remove the two libs, revert this path, daemon-reload.
+# Do not mix versions: a 1.9.12 server cannot serve 1.9.22 clients (protocol 8 vs 9).
+ExecStart=/usr/local/bin/jackd -R -P 95 -d alsa -d hw:sndrpiproto -r 48000 -n 3 -p 128 -S -s
 ExecStartPost=/usr/bin/jack_wait -w -t 10
 TimeoutStopSec=1
 
