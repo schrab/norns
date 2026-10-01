@@ -168,6 +168,29 @@ sudo systemctl start norns.target
 `reset-failed` is required — without it systemd's start-limit latch refuses the unit even
 once jack is healthy. A plain reboot also clears it.
 
+## jackd 1.9.22 (source build; replaced system 1.9.12 on 2026-10-01)
+
+System jackd2 1.9.12 (buster, 2017) was the prime suspect for the shm-registry
+wedge. jack2 **1.9.22** is built on-device into `/usr/local`
+(`/tmp/jack2`, `./waf configure --prefix=/usr/local && ./waf build -j2`) and
+`norns-jack.service` runs `/usr/local/bin/jackd`. The system 1.9.12 libs are
+**dpkg-diverted**: the 1.9.22 `libjack.so.0.1.0` / `libjackserver.so.0.1.0`
+sit at the `/lib/arm-linux-gnueabihf/` paths, old files backed up in
+`/root/jackd2-1.9.12-libs-backup/`. 1.9.22 speaks client protocol **9**;
+1.9.12 speaks 8 — never mix server and clients across versions.
+
+**The trap that bit once**: `ldconfig` rewrites soname symlinks, and with the
+old `.distrib` files still inside `/lib` it re-pointed `libjack.so.0` /
+`libjackserver.so.0` at the **old** libs (silently — services then failed with
+`undefined symbol: jackctl_server_create2`). If you ever re-run ldconfig with
+both generations present, re-check the `libjack*.so.0` symlink targets.
+
+Rollback to 1.9.12: stop the stack, copy the two files from
+`/root/jackd2-1.9.12-libs-backup/` over their names in
+`/lib/arm-linux-gnueabihf/`, remove the divert records
+(`sudo dpkg-divert --remove --no-rename` each), revert the unit path to
+`/usr/bin/jackd`, `daemon-reload`, start target.
+
 ## Version Display
 The main menu's top-right reads **`$HOME/version.txt`**, not `update/version.txt` inside
 the repo (`lua/core/norns.lua:176` → `lua/core/menu/home.lua:79`). The repo copy is
