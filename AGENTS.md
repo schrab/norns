@@ -150,6 +150,14 @@ a bare restart, including SYSTEM>RESTART, is safe as long as the device's instal
 files match the repo copies. If the wedge ever reappears (stale units on the device, or a
 different cause), recovery:
 
+### Second variant (observed 2026-10-01): registry deleted, audio keeps playing
+After rapid restart cycles, jackd's `/dev/shm` registry files end up **`(deleted)`** —
+`/dev/shm` lists no jack files while jackd runs — yet the realtime graph keeps working
+(open fds survive). Symptoms: audio sounds fine, but `jack_lsp` says "JACK server is not
+running", and the *next* norns restart will die on connect. Detect with
+`ls /dev/shm | grep -c jack` (0 while jackd runs = wedged). Same recovery sequence clears
+it; a cold boot also rebuilds the registry cleanly.
+
 ```
 sudo systemctl stop norns-main norns-sclang
 sudo systemctl restart norns-jack
