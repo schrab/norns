@@ -155,8 +155,12 @@ After rapid restart cycles, jackd's `/dev/shm` registry files end up **`(deleted
 `/dev/shm` lists no jack files while jackd runs — yet the realtime graph keeps working
 (open fds survive). Symptoms: audio sounds fine, but `jack_lsp` says "JACK server is not
 running", and the *next* norns restart will die on connect. Detect with
-`ls /dev/shm | grep -c jack` (0 while jackd runs = wedged). Same recovery sequence clears
-it; a cold boot also rebuilds the registry cleanly.
+**Root cause identified (2026-10-23)**: Raspbian defaults to `RemoveIPC=yes` in
+`/etc/systemd/logind.conf`. When user `we` had `Linger=no`, closing the last login or
+SSH session triggered `systemd-logind` to remove the user runtime and IPC slice,
+deleting all `/dev/shm/jack*` shared memory files while `jackd` was running.
+**Fix**: `sudo loginctl enable-linger we` keeps user `we`'s IPC alive permanently.
+Recovery sequence if ever wedged manually:
 
 ```
 sudo systemctl stop norns-main norns-sclang

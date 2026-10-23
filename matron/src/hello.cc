@@ -18,8 +18,8 @@
 static pthread_t tid;
 // microseconds per frame
 static const int tick_us = 5000;
-// frames before timeout
-static const int timeout_ticks = 2400; // ~12 seconds?
+// frames before timeout (extended for RPi 3B+ cold boot SC class compilation)
+static const int timeout_ticks = 6000;
 
 struct {
     double x;
