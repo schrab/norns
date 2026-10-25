@@ -237,6 +237,35 @@ binary.
 5. Cold boot is a separate verification — a service start working does not prove the boot
    path works
 
+## beads-norns Port (untracked sibling repo `beads-norns/`)
+
+Mutable Instruments Beads ported to norns as a SuperCollider UGen — separate
+git repo (`https://github.com/schrab/beads-norns`, remote `origin`), living
+untracked inside this checkout. Real MI DSP (`beads::Processor`) vendored
+byte-identically from eurorack `f4cfa76`/stmlib `e3bd7c9`; all adaptation
+lives in the `BeadsUGen` wrapper. Set as the device boot script via
+`~/dust/data/system.state`. **Its README carries the full dev notes** — the
+traps that bit here: controlspec arg 4 (`step`) vs arg 7 (`quantum`, the
+per-detent increment in normalized 0..1 units — `quantum = step/(max−min)`
+or detents skip values), param-id collisions with mods clobbering params
+(`reverb`→`rvb`; rename every consumer), UGen struct name must match the
+sclang class name, plugin `.so` goes in
+`/usr/local/lib/SuperCollider/plugins/` (Extensions `.so`s are not scanned),
+`-DTEST` + `stmlib/utils/random.cc` + `stmlib/dsp/units.cc` required at
+link, unqualified `FloatFrame` is shadowed by an SC header typedef, seed
+input must be NULL when unsynced (LOCKED + non-NULL = external clock),
+script resume needs `clean_shutdown = true` in system.state, and restart
+the three units explicitly (`norns.target` alone doesn't cycle them).
+
+Deploy: `beads-norns/deploy.sh [host]` — tar-sync to `~/dust/code/beads`,
+on-device build, sudo-install the `.so`, then restart
+`norns-jack norns-sclang norns-main`. Fidelity-relevant architecture: the
+hardware re-clocks its codec per media (24/48/32/48 kHz); norns scsynth is
+fixed 48 kHz, so the wrapper resamples scorched tape (2:1) and cold digital
+(3:2 via up2/down3) with the vendored stmlib SRC in aligned superblocks —
+don't "fix" timing by re-Init'ing engines at 48 kHz, it changes loop length
+and media character.
+
 ## Rollback
 `main` is now 3.0.2 (fast-forwarded), so 2.9.x lives only in the `pre-upstream-3.0.2` tag.
 Branch off the tag when rolling back — don't `git checkout main` expecting 2.9.x. From the
