@@ -258,8 +258,13 @@ script resume needs `clean_shutdown = true` in system.state, and restart
 the three units explicitly (`norns.target` alone doesn't cycle them).
 
 Deploy: `beads-norns/deploy.sh [host]` — tar-sync to `~/dust/code/beads`,
-on-device build, sudo-install the `.so`, then restart
-`norns-jack norns-sclang norns-main`. Fidelity-relevant architecture: the
+on-device build, sudo-install the `.so` into
+`/usr/local/lib/SuperCollider/plugins/` (sclang classes compile straight
+from `~/dust/code/beads/lib` — never also into Extensions: duplicate
+class = SUPERCOLLIDER FAIL), then restart `norns-jack norns-sclang
+norns-main`. The repo installs from GitHub the same way:
+`git clone https://github.com/schrab/beads-norns ~/dust/code/beads &&
+cd ugens && make && make install`. Fidelity-relevant architecture: the
 hardware re-clocks its codec per media (24/48/32/48 kHz); norns scsynth is
 fixed 48 kHz, so the wrapper resamples scorched tape (2:1) and cold digital
 (3:2 via up2/down3) with the vendored stmlib SRC in aligned superblocks —
