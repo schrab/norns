@@ -18,8 +18,10 @@
 static pthread_t tid;
 // microseconds per frame
 static const int tick_us = 5000;
-// frames before timeout (extended for RPi 3B+ cold boot SC class compilation)
-static const int timeout_ticks = 6000;
+// frames before timeout (extended for RPi 3B+ cold boot SC class compilation;
+// extended again for SYSTEM>RESTART, which recompiles sclang under load and
+// can exceed 30s when the class library is large + XRuns storm the CPU)
+static const int timeout_ticks = 12000;
 
 struct {
     double x;
