@@ -102,7 +102,7 @@ int matron_main(int argc, char **argv) {
     w_init(); // weaver (scripting)
 
     dev_list_init();
-    dev_list_add(DEV_TYPE_MIDI_VIRTUAL, NULL, "virtual", NULL);
+    dev_list_add(DEV_TYPE_MIDI_VIRTUAL, NULL, "uart-midi", NULL);
 
     fprintf(stderr, "init dev_monitor...\n");
     dev_monitor_init();

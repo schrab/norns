@@ -61,7 +61,7 @@ function Midi.new(id, name, dev)
   if not tab.contains(connected, name) then
     for i=1,16 do
       -- assign device unless device is specialized virtual interface
-      if Midi.vports[i].name == "none" and d.name ~= "virtual" then
+      if Midi.vports[i].name == "none" and d.name ~= "virtual" and d.name ~= "uart-midi" then
         Midi.vports[i].name = d.name
         break
       end
