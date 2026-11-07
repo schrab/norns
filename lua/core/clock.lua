@@ -323,7 +323,12 @@ function clock.add_params()
   --params:set_action("crow_clear",
     --function() crow.reset() crow.clear() end)
 
+  params:bang("clock_source")
   params:bang("clock_tempo")
+  for i = 1,16 do
+    params:bang("clock_midi_out_"..i)
+  end
+  params:bang("clock_midi_in")
 
   -- executes crow sync
   clock.run(function()

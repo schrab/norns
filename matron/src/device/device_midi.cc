@@ -125,6 +125,8 @@ int dev_midi_virtual_init(void *self) {
     base->start = &dev_midi_start;
     base->deinit = &dev_midi_deinit;
 
+    midi->clock_enabled = true;
+
     return 0;
 }
 
@@ -306,7 +308,7 @@ void *dev_midi_start(void *self) {
 
     snd_rawmidi_status_t *status = NULL;
 
-    midi_input_state_t state;
+    midi_input_state_t state = {};
     ssize_t read = 0;
     ssize_t xruns;
 
