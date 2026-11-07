@@ -68,16 +68,27 @@ dtoverlay=rpi-proto              # WM8731 codec on I2S
 dtoverlay=fates-buttons-4encoders
 dtoverlay=fates-ssd1325          # legacy kernel overlay; userspace driver replaced it
 ```
-`hciuart` must stay disabled — `update/update.sh:459` already does this (stock shield
-code; don't remove).
-
-### UART-MIDI
-Verified on the device (2026-10-01). Chain: `midi-uart0` overlay (PL011 on GPIO14/15) →
-**ttymidi** daemon ([okyeron/ttymidi](https://github.com/okyeron/ttymidi)) → ALSA
-sequencer → norns picks it up like any USB MIDI interface. `ttymidi.service` is enabled
-and runs `/usr/bin/ttymidi -s /dev/ttyAMA0 -b 38400 -n ttymidi` — note **38400**, not
-31250. ttymidi's ALSA client (128) is bridged through a Virtual RawMIDI client so
-portmidi can use it. Verify with `aconnect -l`.
+### UART-MIDI & BLE-MIDI
+- **UART-MIDI (`uart-midi`)**: `midi-uart0` overlay (PL011 `/dev/ttyAMA0` on GPIO14/15) →
+  `ttymidi.service` (`/usr/bin/ttymidi -s /dev/ttyAMA0 -b 38400 -n ttymidi`) → ALSA
+  sequencer client `128: 'ttymidi'` → routed by `amidiminder` to matron's `DEV_TYPE_MIDI_VIRTUAL`
+  client `'uart-midi'`. Note: hardware MIDI IN (`OK1` `HCPL0600` optocoupler) is a 5V part
+  powered from `+3V3` on the current board revision, which prevents RX from pulling GPIO 15 low.
+- **BLE-MIDI (`ble-midi`)**: `dtoverlay=miniuart-bt` moves the BCM43455 (`BCM4345C0`) Bluetooth
+  controller onto `/dev/serial1` (`/dev/ttyS0` mini-UART on GPIOs 32/33), so PL011 stays free for
+  `uart-midi`. On RPi 3B+, `BT_ON` is on the mailbox GPIO expander `gpiochip1` line 0 (`GPIO 504`,
+  **not** GPIO 43). `/usr/bin/btuart` pulses `gpio504` low→high and runs `hciattach /dev/serial1
+  bcm43xx 115200 noflow - $BDADDR` (115200 baud avoids mini-UART FIFO overruns during firmware load).
+  Both `hciuart.service` and `bluetooth.service` are enabled.
+- **Dual-role BLE MIDI (`fates-ble-midi.service`)**:
+  - **Central (host)**: BlueZ 5.50's built-in MIDI GATT client (`03B80E5A-EDE8-4B33-A751-6CE34EC4C700`)
+    exposes connected BLE MIDI controllers (e.g. `SMC-PAD`, `F5:CF:2A:7F:3A:B2`) as ALSA sequencer
+    ports (`*:Bluetooth`), and `fates-ble-midi` auto-reconnects trusted BLE MIDI devices every 5s.
+  - **Peripheral (device)**: `/usr/local/bin/fates-ble-midi` (`/usr/local/src/fates-ble-midi.c`)
+    registers the BLE MIDI GATT server and LE advertisement (`LocalName: "fates"`) with BlueZ and
+    exposes ALSA sequencer client `'fates-ble'`.
+  - `/etc/amidiminder.rules` routes both `*:Bluetooth` and `fates-ble` `<-->` matron's `'ble-midi'`
+    virtual device (`vport 2` in `SYSTEM > DEVICES > MIDI`).
 
 ### WM8731 audio (card `sndrpiproto`; `/etc/asound.conf` maps default to it)
 - **One** DAC volume pair (`Master Playback Volume`, numid=1, 0–127, values=2) feeds the
