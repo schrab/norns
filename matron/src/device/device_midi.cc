@@ -119,6 +119,13 @@ int dev_midi_virtual_init(void *self) {
         return -1;
     }
 
+    if (base->name != NULL) {
+        void **priv = (void **)((void **)midi->handle_in)[7];
+        if (priv != NULL && priv[1] != NULL) {
+            snd_seq_set_client_name((snd_seq_t *)priv[1], base->name);
+        }
+    }
+
     // trigger reading
     snd_rawmidi_read(midi->handle_in, NULL, 0);
 

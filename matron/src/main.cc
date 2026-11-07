@@ -103,6 +103,7 @@ int matron_main(int argc, char **argv) {
 
     dev_list_init();
     dev_list_add(DEV_TYPE_MIDI_VIRTUAL, NULL, "uart-midi", NULL);
+    dev_list_add(DEV_TYPE_MIDI_VIRTUAL, NULL, "ble-midi", NULL);
 
     fprintf(stderr, "init dev_monitor...\n");
     dev_monitor_init();

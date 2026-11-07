@@ -311,8 +311,10 @@ void add_dev_sound(struct udev_device *dev) {
     const char *alsa_node = get_alsa_midi_node(dev);
     if (alsa_node != NULL) {
         char *name = get_device_name(dev);
-        fprintf(stderr, "dev_monitor: adding midi device %s\n", name);
-        dev_list_add(DEV_TYPE_MIDI, alsa_node, name, NULL);
+        if (name != NULL) {
+            fprintf(stderr, "dev_monitor: adding midi device %s\n", name);
+            dev_list_add(DEV_TYPE_MIDI, alsa_node, name, NULL);
+        }
     }
 }
 
